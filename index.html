@@ -48,10 +48,5 @@ runTracks.forEach(track => {
   }).addTo(map);
     });
   </script>
-<script>
-  L.GPX("runs/Lunch_Run.gpx", { async: true }).on('loaded', function(e) {
-      map.fitBounds(e.target.getBounds());
-  }).addTo(map);
-  </script>
 </body>
 </html>
