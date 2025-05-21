@@ -26,25 +26,26 @@
 
     // Load your GPX tracks here
     const runTracks = [
-      'runs/run1.gpx',
-      'runs/run2.gpx',
-      // Add more GPX files as you record them
-    ];
+  'runs/run1.gpx',
+  'runs/Lunch_Run.gpx',  // Add your new run here
+];
 
-    runTracks.forEach(track => {
-      new L.GPX(track, {
-        async: true,
-        marker_options: {
-          startIconUrl: '',
-          endIconUrl: '',
-          shadowUrl: ''
-        },
-        polyline_options: {
-          color: '#f00',
-          weight: 4,
-          opacity: 0.8
-        }
-      }).addTo(map);
+runTracks.forEach(track => {
+  new L.GPX(track, {
+    async: true,
+    marker_options: {
+      startIconUrl: '',
+      endIconUrl: '',
+      shadowUrl: ''
+    },
+    polyline_options: {
+      color: '#f00',
+      weight: 4,
+      opacity: 0.8
+    }
+  }).on('loaded', function(e) {
+    map.fitBounds(e.target.getBounds());
+  }).addTo(map);
     });
   </script>
 <script>
