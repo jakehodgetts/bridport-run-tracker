@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 <!DOCTYPE html>
 <html>
 <head>
@@ -48,4 +49,58 @@
     });
   </script>
 </body>
+=======
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Bridport Run Tracker</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    #map {
+      height: 100vh;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-gpx/gpx.js"></script>
+
+  <script>
+    const map = L.map('map').setView([50.733, -2.758], 14); // Centered on Bridport
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Load your GPX tracks here
+    const runTracks = [
+      'runs/run1.gpx',
+      'runs/run2.gpx',
+      // Add more GPX files as you record them
+  'runs/LunchRun.gpx', 
+  'runs/Lunch_Run.gpx', 
+    ];
+
+    runTracks.forEach(track => {
+      new L.GPX(track, {
+        async: true,
+        marker_options: {
+          startIconUrl: '',
+          endIconUrl: '',
+          shadowUrl: ''
+        },
+        polyline_options: {
+          color: '#f00',
+          weight: 4,
+          opacity: 0.8
+        }
+      }).addTo(map);
+    });
+  </script>
+</body>
+>>>>>>> a4cb342 (Add new run Lunch_Run.gpx)
 </html>
