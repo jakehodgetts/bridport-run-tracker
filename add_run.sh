@@ -1,28 +1,40 @@
 #!/bin/bash
 
-if [ "$#" -ne 1 ]; then
-  echo "Usage: ./add_run.sh path_to_new_gpx_file"
+# Exit on any error
+set -e
+
+# Check if GPX file path is provided
+if [ -z "$1" ]; then
+  echo "Usage: ./add_run.sh /path/to/your_run.gpx"
   exit 1
 fi
 
-NEW_GPX="$1"
-BASENAME=$(basename "$NEW_GPX")
+GPX_SOURCE="$1"
+GPX_FILENAME=$(basename "$GPX_SOURCE")
+DEST_FOLDER="runs"
+DEST_PATH="$DEST_FOLDER/$GPX_FILENAME"
 
-# Copy the new GPX file into runs folder
-cp "$NEW_GPX" runs/
+# Copy GPX file
+mkdir -p "$DEST_FOLDER"
+cp "$GPX_SOURCE" "$DEST_PATH"
+echo "Copied $GPX_FILENAME to $DEST_FOLDER/"
 
-# Check if the file is already in index.html to avoid duplicates
-if grep -q "$BASENAME" index.html; then
-  echo "$BASENAME already listed in index.html"
-else
-  # Insert the new file into runTracks array before the closing bracket
-  sed -i "/const runTracks = \[/,/\];/{
-    /];/i \  'runs/$BASENAME', 
-  }" index.html
-  echo "Added $BASENAME to index.html"
-fi
+# Generate index.json
+echo "Generating index.json..."
+python3 - <<EOF
+import os
+import json
 
-# Git add, commit, push
-git add runs/"$BASENAME" index.html
-git commit -m "Add new run $BASENAME"
+gpx_files = [f for f in os.listdir("runs") if f.endswith(".gpx")]
+with open("index.json", "w") as f:
+    json.dump(gpx_files, f, indent=2)
+EOF
+
+echo "index.json generated with all .gpx files"
+
+# Stage files
+git add "$DEST_PATH" index.json
+git commit -m "Add new run $GPX_FILENAME"
 git push
+
+echo "Run $GPX_FILENAME added, committed, and pushed successfully."
