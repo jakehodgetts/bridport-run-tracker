@@ -3,61 +3,114 @@
 <head>
   <title>Bridport Run Tracker</title>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
+    #summary {
+      background: #222;
+      color: white;
+      padding: 10px;
+      font-family: Arial, sans-serif;
+      font-size: 16px;
+      text-align: center;
+    }
     #map {
       height: 90vh;
-    }
-    #summary {
-      padding: 1rem;
-      background: #f0f0f0;
-      font-family: sans-serif;
     }
   </style>
 </head>
 <body>
-  <div id="summary">
-    <strong>Total Runs:</strong> <span id="run-count">Loading...</span> |
-    <strong>Total Distance:</strong> <span id="total-distance">--</span> km |
-    <strong>Total Time:</strong> <span id="total-time">--</span> |
-    <strong>Total Elevation Gain:</strong> <span id="total-elevation">--</span> m
-  </div>
 
-  <div id="map"></div>
+<div id="summary">
+  Total Runs: <span id="totalRuns">Loading...</span> | 
+  Total Distance: <span id="totalDistance">--</span> km | 
+  Total Time: <span id="totalTime">--:--:--</span> | 
+  Total Elevation Gain: <span id="totalElevation">--</span> m
+</div>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://unpkg.com/leaflet-gpx/gpx.js"></script>
+<div id="map"></div>
 
-  <script>
-    const map = L.map('map').setView([50.733, -2.758], 14);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-gpx/gpx.js"></script>
 
-    // Load your GPX tracks here
-    const runTracks = [
-  'runs/run1.gpx',
-  'runs/Lunch_Run.gpx',  // Add your new run here
-];
+<script>
+  const map = L.map('map').setView([50.733, -2.758], 14);
 
-runTracks.forEach(track => {
-  new L.GPX(track, {
-    async: true,
-    marker_options: {
-      startIconUrl: '',
-      endIconUrl: '',
-      shadowUrl: ''
-    },
-    polyline_options: {
-      color: '#f00',
-      weight: 4,
-      opacity: 0.8
-    }
-  }).on('loaded', function(e) {
-    map.fitBounds(e.target.getBounds());
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors'
   }).addTo(map);
+
+  // List your GPX files here - you can automate this list server-side if you want
+  const runTracks = [
+    'runs/run1.gpx',
+    'runs/Lunch_Run.gpx',
+    // add more here, or automate
+  ];
+
+  // Helper to format seconds into HH:MM:SS
+  function formatTime(seconds) {
+    const h = Math.floor(seconds / 3600).toString().padStart(2, '0');
+    const m = Math.floor((seconds % 3600) / 60).toString().padStart(2, '0');
+    const s = Math.floor(seconds % 60).toString().padStart(2, '0');
+    return `${h}:${m}:${s}`;
+  }
+
+  // Load a GPX file and return a Promise with stats and layer
+  function loadGPX(track) {
+    return new Promise((resolve, reject) => {
+      const gpxLayer = new L.GPX(track, {
+        async: true,
+        marker_options: {
+          startIconUrl: '',
+          endIconUrl: '',
+          shadowUrl: ''
+        },
+        polyline_options: {
+          color: '#f00',
+          weight: 4,
+          opacity: 0.8
+        }
+      });
+      gpxLayer.on('loaded', e => {
+        const info = e.target.get_distance_time_ele(); // {distance, time, elevation} in meters, seconds, meters
+        resolve({ info, layer: gpxLayer });
+      });
+      gpxLayer.on('error', reject);
+      gpxLayer.addTo(map);
     });
-  </script>
+  }
+
+  Promise.all(runTracks.map(loadGPX))
+    .then(results => {
+      let totalDistance = 0;
+      let totalTime = 0;
+      let totalElevation = 0;
+      const bounds = L.latLngBounds();
+
+      results.forEach(({ info, layer }) => {
+        totalDistance += info.distance;
+        totalTime += info.time;
+        totalElevation += info.elevation;
+        bounds.extend(layer.getBounds());
+      });
+
+      document.getElementById('totalRuns').textContent = results.length;
+      document.getElementById('totalDistance').textContent = (totalDistance / 1000).toFixed(2);
+      document.getElementById('totalTime').textContent = formatTime(totalTime);
+      document.getElementById('totalElevation').textContent = Math.round(totalElevation);
+
+      if (results.length > 0) {
+        map.fitBounds(bounds);
+      }
+    })
+    .catch(err => {
+      console.error('Failed to load some GPX files:', err);
+      document.getElementById('totalRuns').textContent = 'Error';
+      document.getElementById('totalDistance').textContent = '--';
+      document.getElementById('totalTime').textContent = '--:--:--';
+      document.getElementById('totalElevation').textContent = '--';
+    });
+</script>
+
 </body>
 </html>
