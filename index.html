@@ -61,38 +61,37 @@
   }
 
   function processGPX(gpxLayer) {
-    const tracks = gpxLayer.getLayers();
+  const tracks = gpxLayer.getLayers().filter(layer => typeof layer.getLatLngs === 'function');
 
-    let totalDistance = 0;
-    let totalElevationGain = 0;
-    let totalTime = 0;
+  let totalDistance = 0;
+  let totalElevationGain = 0;
+  let totalTime = 0;
 
-    tracks.forEach(track => {
-      const latlngs = track.getLatLngs();
-      for (let i = 1; i < latlngs.length; i++) {
-        const prev = latlngs[i - 1];
-        const curr = latlngs[i];
-        totalDistance += haversineDistance(prev.lat, prev.lng, curr.lat, curr.lng);
+  tracks.forEach(track => {
+    const latlngs = track.getLatLngs();
 
-        // Elevation gain
-        if (curr.meta && prev.meta && curr.meta.ele !== undefined && prev.meta.ele !== undefined) {
-          const elevationDiff = curr.meta.ele - prev.meta.ele;
-          if (elevationDiff > 0) totalElevationGain += elevationDiff;
-        }
+    for (let i = 1; i < latlngs.length; i++) {
+      const prev = latlngs[i - 1];
+      const curr = latlngs[i];
+      totalDistance += haversineDistance(prev.lat, prev.lng, curr.lat, curr.lng);
 
-        // Time difference
-        if (curr.meta && prev.meta && curr.meta.time && prev.meta.time) {
-          totalTime += (new Date(curr.meta.time) - new Date(prev.meta.time));
-        }
+      if (curr.meta && prev.meta && curr.meta.ele !== undefined && prev.meta.ele !== undefined) {
+        const elevationDiff = curr.meta.ele - prev.meta.ele;
+        if (elevationDiff > 0) totalElevationGain += elevationDiff;
       }
-    });
 
-    return {
-      distanceKm: totalDistance / 1000,
-      elevationGainM: totalElevationGain,
-      totalTimeSec: totalTime / 1000
-    };
-  }
+      if (curr.meta && prev.meta && curr.meta.time && prev.meta.time) {
+        totalTime += (new Date(curr.meta.time) - new Date(prev.meta.time));
+      }
+    }
+  });
+
+  return {
+    distanceKm: totalDistance / 1000,
+    elevationGainM: totalElevationGain,
+    totalTimeSec: totalTime / 1000
+  };
+}
 
   const map = L.map('map').setView([50.733, -2.758], 14);
 
