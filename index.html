@@ -111,6 +111,12 @@ function processGPX(gpxLayer) {
       let timePrev = prev.meta?.time ?? prev._time ?? null;
       let timeCurr = curr.meta?.time ?? curr._time ?? null;
 
+console.log('Prev point meta:', prev.meta);
+console.log('Curr point meta:', curr.meta);
+console.log('Prev ele:', elePrev, 'Curr ele:', eleCurr);
+console.log('Prev time:', timePrev, 'Curr time:', timeCurr);
+
+
       if (timePrev && timeCurr) {
         timePrev = new Date(timePrev);
         timeCurr = new Date(timeCurr);
