@@ -73,6 +73,8 @@ function processGPX(gpxLayer) {
   let totalElevationGain = 0;
   let totalTime = 0;
 
+console.log("processGPX called");
+
   const trackLayers = gpxLayer.getLayers().filter(layer => typeof layer.getLatLngs === 'function');
 
   trackLayers.forEach(track => {
@@ -162,6 +164,7 @@ console.log('Prev time:', timePrev, 'Curr time:', timeCurr);
       polyline_options: { color: '#f00', weight: 4, opacity: 0.8 }
     }).on('loaded', function(e) {
       const stats = processGPX(e.target);
+console.log("GPX loaded for", track);
 
       totalRuns++;
       totalDistance += stats.distanceKm;
