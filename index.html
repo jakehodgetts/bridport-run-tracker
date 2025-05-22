@@ -29,7 +29,10 @@
 <body>
 
 <div id="summary">
-  Total Runs: 0 | Total Distance: -- km | Total Time: -- | Total Elevation Gain: -- m
+  Total Runs: <span id="totalRuns">0</span> |
+  Total Distance: <span id="totalDistance">--</span> km |
+  Total Time: <span id="totalTime">--:--:--</span> |
+  Total Elevation Gain: <span id="totalElevation">--</span> m
 </div>
 <div id="map"></div>
 
@@ -37,61 +40,68 @@
 <script src="https://unpkg.com/leaflet-gpx/gpx.js"></script>
 
 <script>
-  // Helper: format seconds to hh:mm:ss
-  function formatTime(seconds) {
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = Math.floor(seconds % 60);
-    return [h, m, s]
-      .map(v => v < 10 ? "0" + v : v)
-      .join(":");
+  // Helper: format milliseconds to hh:mm:ss
+  function formatTime(ms) {
+    const totalSeconds = Math.floor(ms / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return `${hours.toString().padStart(2,'0')}:${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')}`;
   }
 
-  // Haversine formula to calculate distance in meters
+  // Haversine formula to calculate distance in meters between two lat/lng points
   function haversineDistance(lat1, lon1, lat2, lon2) {
-    const R = 6371e3; // meters
+    const R = 6371e3; // Earth radius in meters
     const toRad = deg => deg * Math.PI / 180;
     const dLat = toRad(lat2 - lat1);
     const dLon = toRad(lon2 - lon1);
     const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
               Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
               Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   }
 
+  // Process GPX layer to calculate total distance, elevation gain, and time
   function processGPX(gpxLayer) {
-  const tracks = gpxLayer.getLayers().filter(layer => typeof layer.getLatLngs === 'function');
+    const tracks = gpxLayer.getLayers().filter(layer => typeof layer.getLatLngs === 'function');
 
-  let totalDistance = 0;
-  let totalElevationGain = 0;
-  let totalTime = 0;
+    let totalDistance = 0;
+    let totalElevationGain = 0;
+    let totalTime = 0;
 
-  tracks.forEach(track => {
-    const latlngs = track.getLatLngs();
+    tracks.forEach(track => {
+      const latlngs = track.getLatLngs();
 
-    for (let i = 1; i < latlngs.length; i++) {
-      const prev = latlngs[i - 1];
-      const curr = latlngs[i];
-      totalDistance += haversineDistance(prev.lat, prev.lng, curr.lat, curr.lng);
+      for (let i = 1; i < latlngs.length; i++) {
+        const prev = latlngs[i - 1];
+        const curr = latlngs[i];
 
-      if (curr.meta && prev.meta && curr.meta.ele !== undefined && prev.meta.ele !== undefined) {
-        const elevationDiff = curr.meta.ele - prev.meta.ele;
-        if (elevationDiff > 0) totalElevationGain += elevationDiff;
+        totalDistance += haversineDistance(prev.lat, prev.lng, curr.lat, curr.lng);
+
+        if (curr.meta && prev.meta) {
+          const eleCurr = parseFloat(curr.meta.ele);
+          const elePrev = parseFloat(prev.meta.ele);
+          if (!isNaN(eleCurr) && !isNaN(elePrev)) {
+            const elevationDiff = eleCurr - elePrev;
+            if (elevationDiff > 0) totalElevationGain += elevationDiff;
+          }
+
+          const timeCurr = new Date(curr.meta.time);
+          const timePrev = new Date(prev.meta.time);
+          if (!isNaN(timeCurr) && !isNaN(timePrev)) {
+            totalTime += (timeCurr - timePrev);
+          }
+        }
       }
+    });
 
-      if (curr.meta && prev.meta && curr.meta.time && prev.meta.time) {
-        totalTime += (new Date(curr.meta.time) - new Date(prev.meta.time));
-      }
-    }
-  });
-
-  return {
-    distanceKm: totalDistance / 1000,
-    elevationGainM: totalElevationGain,
-    totalTimeSec: totalTime / 1000
-  };
-}
+    return {
+      distanceKm: totalDistance / 1000,
+      elevationGainM: totalElevationGain,
+      totalTimeSec: totalTime / 1000 // return seconds
+    };
+  }
 
   const map = L.map('map').setView([50.733, -2.758], 14);
 
@@ -99,14 +109,14 @@
     attribution: '&copy; OpenStreetMap contributors'
   }).addTo(map);
 
-  // Add your GPX files here, no hardcoding needed if you generate this list dynamically server-side in future
+  // Add your GPX files here; in future, could dynamically load this list
   const runTracks = [
     'runs/run1.gpx',
     'runs/Lunch_Run.gpx',
     // Add other GPX files here
   ];
 
-  // Variables to accumulate totals across runs
+  // Variables to accumulate totals across all runs
   let totalRuns = 0;
   let totalDistance = 0;
   let totalElevationGain = 0;
@@ -136,14 +146,12 @@
       map.fitBounds(allBounds);
 
       // Update summary banner
-      document.getElementById('summary').textContent = 
-        `Total Runs: ${totalRuns} | ` +
-        `Total Distance: ${totalDistance.toFixed(2)} km | ` +
-        `Total Time: ${formatTime(totalTime)} | ` +
-        `Total Elevation Gain: ${Math.round(totalElevationGain)} m`;
+      document.getElementById('totalRuns').textContent = totalRuns;
+      document.getElementById('totalDistance').textContent = totalDistance.toFixed(2);
+      document.getElementById('totalElevation').textContent = Math.round(totalElevationGain);
+      document.getElementById('totalTime').textContent = formatTime(totalTime * 1000); // ms for formatting
     }).addTo(map);
   });
-
 </script>
 </body>
 </html>
