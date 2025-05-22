@@ -81,6 +81,9 @@ console.log("processGPX called");
     let latlngs = track.getLatLngs();
     latlngs = flattenLatLngs(latlngs);
 
+const latlngs = track.getLatLngs();
+console.log("LatLngs:", latlngs.slice(0, 3)); // show first few points
+
     for (let i = 1; i < latlngs.length; i++) {
       const prev = latlngs[i - 1];
       const curr = latlngs[i];
