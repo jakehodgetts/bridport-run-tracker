@@ -63,45 +63,67 @@
   }
 
   // Process GPX layer to calculate total distance, elevation gain, and time
-  function processGPX(gpxLayer) {
-    const tracks = gpxLayer.getLayers().filter(layer => typeof layer.getLatLngs === 'function');
+  function flattenLatLngs(latlngs) {
+  // flatten nested arrays if present (sometimes getLatLngs returns array of arrays)
+  return latlngs.flat(Infinity);
+}
 
-    let totalDistance = 0;
-    let totalElevationGain = 0;
-    let totalTime = 0;
+function processGPX(gpxLayer) {
+  let totalDistance = 0;
+  let totalElevationGain = 0;
+  let totalTime = 0;
 
-    tracks.forEach(track => {
-      const latlngs = track.getLatLngs();
+  // get all track layers that have getLatLngs
+  const trackLayers = gpxLayer.getLayers().filter(layer => typeof layer.getLatLngs === 'function');
 
-      for (let i = 1; i < latlngs.length; i++) {
-        const prev = latlngs[i - 1];
-        const curr = latlngs[i];
+  trackLayers.forEach(track => {
+    let latlngs = track.getLatLngs();
+    latlngs = flattenLatLngs(latlngs);
 
-        totalDistance += haversineDistance(prev.lat, prev.lng, curr.lat, curr.lng);
+    for (let i = 1; i < latlngs.length; i++) {
+      const prev = latlngs[i - 1];
+      const curr = latlngs[i];
 
-        if (curr.meta && prev.meta) {
-          const eleCurr = parseFloat(curr.meta.ele);
-          const elePrev = parseFloat(prev.meta.ele);
-          if (!isNaN(eleCurr) && !isNaN(elePrev)) {
-            const elevationDiff = eleCurr - elePrev;
-            if (elevationDiff > 0) totalElevationGain += elevationDiff;
-          }
+      // distance calc
+      totalDistance += haversineDistance(prev.lat, prev.lng, curr.lat, curr.lng);
 
-          const timeCurr = new Date(curr.meta.time);
-          const timePrev = new Date(prev.meta.time);
-          if (!isNaN(timeCurr) && !isNaN(timePrev)) {
-            totalTime += (timeCurr - timePrev);
-          }
+      // elevation gain calc, some GPX files store ele differently; check multiple possibilities
+      let elePrev = prev.meta?.ele ?? prev.elevation ?? null;
+      let eleCurr = curr.meta?.ele ?? curr.elevation ?? null;
+
+console.log('Elevation prev/curr:', elePrev, eleCurr);
+console.log('Time prev/curr:', timePrev, timeCurr);
+
+      if (elePrev !== null && eleCurr !== null) {
+        elePrev = parseFloat(elePrev);
+        eleCurr = parseFloat(eleCurr);
+        if (!isNaN(elePrev) && !isNaN(eleCurr)) {
+          const elevationDiff = eleCurr - elePrev;
+          if (elevationDiff > 0) totalElevationGain += elevationDiff;
         }
       }
-    });
 
-    return {
-      distanceKm: totalDistance / 1000,
-      elevationGainM: totalElevationGain,
-      totalTimeSec: totalTime / 1000 // return seconds
-    };
-  }
+      // time calc, similarly handle possible locations of time data
+      let timePrev = prev.meta?.time ?? prev.time ?? null;
+      let timeCurr = curr.meta?.time ?? curr.time ?? null;
+
+      if (timePrev && timeCurr) {
+        timePrev = new Date(timePrev);
+        timeCurr = new Date(timeCurr);
+        if (!isNaN(timePrev) && !isNaN(timeCurr)) {
+          totalTime += (timeCurr - timePrev);
+        }
+      }
+    }
+  });
+
+  return {
+    distanceKm: totalDistance / 1000,
+    elevationGainM: totalElevationGain,
+    totalTimeSec: totalTime / 1000
+  };
+}
+
 
   const map = L.map('map').setView([50.733, -2.758], 14);
 
