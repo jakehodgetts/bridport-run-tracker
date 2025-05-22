@@ -73,7 +73,6 @@ function processGPX(gpxLayer) {
   let totalElevationGain = 0;
   let totalTime = 0;
 
-  // get all track layers that have getLatLngs
   const trackLayers = gpxLayer.getLayers().filter(layer => typeof layer.getLatLngs === 'function');
 
   trackLayers.forEach(track => {
@@ -84,28 +83,33 @@ function processGPX(gpxLayer) {
       const prev = latlngs[i - 1];
       const curr = latlngs[i];
 
-      // distance calc
+      // Distance between points
       totalDistance += haversineDistance(prev.lat, prev.lng, curr.lat, curr.lng);
 
-      // elevation gain calc, some GPX files store ele differently; check multiple possibilities
-      let elePrev = prev.meta?.ele ?? prev.elevation ?? null;
-      let eleCurr = curr.meta?.ele ?? curr.elevation ?? null;
+      // Try to get elevation from meta or _ele property
+      let elePrev = null;
+      let eleCurr = null;
 
-console.log('Elevation prev/curr:', elePrev, eleCurr);
-console.log('Time prev/curr:', timePrev, timeCurr);
-
-      if (elePrev !== null && eleCurr !== null) {
-        elePrev = parseFloat(elePrev);
-        eleCurr = parseFloat(eleCurr);
-        if (!isNaN(elePrev) && !isNaN(eleCurr)) {
-          const elevationDiff = eleCurr - elePrev;
-          if (elevationDiff > 0) totalElevationGain += elevationDiff;
-        }
+      if (prev.meta && prev.meta.ele) {
+        elePrev = parseFloat(prev.meta.ele);
+      } else if (prev._ele) {
+        elePrev = parseFloat(prev._ele);
       }
 
-      // time calc, similarly handle possible locations of time data
-      let timePrev = prev.meta?.time ?? prev.time ?? null;
-      let timeCurr = curr.meta?.time ?? curr.time ?? null;
+      if (curr.meta && curr.meta.ele) {
+        eleCurr = parseFloat(curr.meta.ele);
+      } else if (curr._ele) {
+        eleCurr = parseFloat(curr._ele);
+      }
+
+      if (!isNaN(elePrev) && !isNaN(eleCurr)) {
+        const elevationDiff = eleCurr - elePrev;
+        if (elevationDiff > 0) totalElevationGain += elevationDiff;
+      }
+
+      // Time extraction: from meta.time or _time (some versions use _time)
+      let timePrev = prev.meta?.time ?? prev._time ?? null;
+      let timeCurr = curr.meta?.time ?? curr._time ?? null;
 
       if (timePrev && timeCurr) {
         timePrev = new Date(timePrev);
